@@ -23,20 +23,47 @@ class PlayerViewModel @Inject constructor(
     private val _currentTrack = MutableStateFlow<TrackInfo?>(null)
     val currentTrack: StateFlow<TrackInfo?> = _currentTrack.asStateFlow()
 
+    private fun normalizeVideoId(videoIdOrUrl: String): String? {
+        val trimmed = videoIdOrUrl.trim()
+        if (trimmed.isBlank()) return null
+
+        val plainIdRegex = Regex("^[A-Za-z0-9_-]{11}$")
+        if (plainIdRegex.matches(trimmed)) return trimmed
+
+        val patterns = listOf(
+            Regex("[?&]v=([A-Za-z0-9_-]{11})"),
+            Regex("youtu\\.be/([A-Za-z0-9_-]{11})"),
+            Regex("/shorts/([A-Za-z0-9_-]{11})")
+        )
+
+        for (pattern in patterns) {
+            val match = pattern.find(trimmed)
+            if (match != null) return match.groupValues[1]
+        }
+
+        return null
+    }
+
     fun playYouTubeVideo(videoId: String, title: String = "Unknown", artist: String = "Unknown") {
-        _currentTrack.value = TrackInfo(title, artist)
+        val normalizedVideoId = normalizeVideoId(videoId)
+        if (normalizedVideoId == null) {
+            println("Invalid YouTube video id/url: $videoId")
+            _currentTrack.value = null
+            return
+        }
+
         viewModelScope.launch {
             try {
                 val url = withContext(Dispatchers.IO) {
-                    YouTubeStreamFetcher.getStreamUrl(videoId)
+                    YouTubeStreamFetcher.getStreamUrl(normalizedVideoId)
                 }
                 if (url != null) {
-                    // Start playback on main thread
+                    _currentTrack.value = TrackInfo(title, artist)
                     withContext(Dispatchers.Main) {
                         playerController.playStream(url)
                     }
                 } else {
-                    println("Failed to fetch audio stream URL for $videoId")
+                    println("Failed to fetch audio stream URL for $normalizedVideoId")
                     _currentTrack.value = null
                 }
             } catch (e: Exception) {

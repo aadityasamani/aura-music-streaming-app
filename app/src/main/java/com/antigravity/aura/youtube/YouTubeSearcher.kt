@@ -9,6 +9,29 @@ import org.schabi.newpipe.extractor.search.SearchExtractor
 import com.antigravity.aura.ui.viewmodels.TrackSearchResult
 
 object YouTubeSearcher {
+
+    private fun extractVideoId(urlOrId: String): String? {
+        val trimmed = urlOrId.trim()
+        if (trimmed.isBlank()) return null
+
+        // Already a plain YouTube video id.
+        val plainIdRegex = Regex("^[A-Za-z0-9_-]{11}$")
+        if (plainIdRegex.matches(trimmed)) return trimmed
+
+        // Common URL formats: youtube.com/watch?v=..., youtu.be/..., shorts/...
+        val patterns = listOf(
+            Regex("[?&]v=([A-Za-z0-9_-]{11})"),
+            Regex("youtu\\.be/([A-Za-z0-9_-]{11})"),
+            Regex("/shorts/([A-Za-z0-9_-]{11})")
+        )
+
+        for (pattern in patterns) {
+            val match = pattern.find(trimmed)
+            if (match != null) return match.groupValues[1]
+        }
+
+        return null
+    }
     
     suspend fun search(query: String): List<TrackSearchResult> = withContext(Dispatchers.IO) {
         try {
@@ -17,8 +40,11 @@ object YouTubeSearcher {
             
             val items = searchExtractor.initialPage.items
             return@withContext items.filterIsInstance<StreamInfoItem>().map { item ->
+                val normalizedVideoId = extractVideoId(item.url)
+                    ?: item.url.substringAfter("v=").substringBefore('&')
+
                 TrackSearchResult(
-                    videoId = item.url.substringAfter("v="),
+                    videoId = normalizedVideoId,
                     title = item.name,
                     artist = item.uploaderName
                 )
@@ -38,8 +64,7 @@ object YouTubeSearcher {
             val items = searchExtractor.initialPage.items
             for (item in items) {
                 if (item is StreamInfoItem) {
-                    // Item URL looks like https://www.youtube.com/watch?v=VIDEO_ID
-                    return@withContext item.url.substringAfter("v=")
+                    return@withContext extractVideoId(item.url)
                 }
             }
         } catch (e: Exception) {
