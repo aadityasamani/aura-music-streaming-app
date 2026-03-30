@@ -6,8 +6,28 @@ import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamExtractor
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import org.schabi.newpipe.extractor.search.SearchExtractor
+import com.antigravity.aura.ui.viewmodels.TrackSearchResult
 
 object YouTubeSearcher {
+    
+    suspend fun search(query: String): List<TrackSearchResult> = withContext(Dispatchers.IO) {
+        try {
+            val searchExtractor = ServiceList.YouTube.getSearchExtractor(query)
+            searchExtractor.fetchPage()
+            
+            val items = searchExtractor.initialPage.items
+            return@withContext items.filterIsInstance<StreamInfoItem>().map { item ->
+                TrackSearchResult(
+                    videoId = item.url.substringAfter("v="),
+                    title = item.name,
+                    artist = item.uploaderName
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return@withContext emptyList()
+        }
+    }
     
     suspend fun searchVideoId(query: String): String? = withContext(Dispatchers.IO) {
         try {

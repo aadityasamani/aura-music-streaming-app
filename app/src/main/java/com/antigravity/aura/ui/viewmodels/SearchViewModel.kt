@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import javax.inject.Inject
 
@@ -37,54 +36,18 @@ class SearchViewModel @Inject constructor() : ViewModel() {
             _isLoading.value = true
             _errorMessage.value = null
             try {
-                val results = withContext(Dispatchers.IO) {
-                    val apiKey = com.antigravity.aura.BuildConfig.YOUTUBE_API_KEY
-                    
-                    if (apiKey.isEmpty() || apiKey == "YOUR_API_KEY_HERE") {
-                        throw Exception("Please add YOUTUBE_API_KEY=AIza... to your local.properties file!")
-                    }
-
-                    val encodedQuery = java.net.URLEncoder.encode("$query official audio", "UTF-8")
-                    val urlString = "https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=20&q=$encodedQuery&key=$apiKey"
-                    
-                    val responseStr = java.net.URL(urlString).readText()
-                    val json = org.json.JSONObject(responseStr)
-                    val items = json.optJSONArray("items") ?: org.json.JSONArray()
-                    
-                    val parsedResults = mutableListOf<TrackSearchResult>()
-                    for (i in 0 until items.length()) {
-                        val item = items.getJSONObject(i)
-                        val videoId = item.optJSONObject("id")?.optString("videoId")
-                        val snippet = item.optJSONObject("snippet")
-                        
-                        if (videoId != null && snippet != null) {
-                            // Clean up HTML escaped text like &#39;
-                            val title = android.text.Html.fromHtml(snippet.optString("title"), android.text.Html.FROM_HTML_MODE_LEGACY).toString()
-                            val artist = snippet.optString("channelTitle")
-                            
-                            parsedResults.add(
-                                TrackSearchResult(
-                                    videoId = videoId,
-                                    title = title,
-                                    artist = artist
-                                )
-                            )
-                        }
-                    }
-                    parsedResults
-                }
+                val results = com.antigravity.aura.youtube.YouTubeSearcher.search(query)
                 
                 if (results.isEmpty()) {
-                    _errorMessage.value = "YouTube API returned no results."
+                    _errorMessage.value = "No results found on YouTube."
                     _searchResults.value = emptyList()
                 } else {
                     _searchResults.value = results
                 }
                 
-                
             } catch (e: Exception) {
                 e.printStackTrace()
-                _errorMessage.value = "Failed to fetch from YouTube: \${e.message ?: e.javaClass.simpleName}."
+                _errorMessage.value = "Failed to fetch from YouTube: ${e.message ?: e.javaClass.simpleName}."
                 _searchResults.value = emptyList()
             } finally {
                 _isLoading.value = false
