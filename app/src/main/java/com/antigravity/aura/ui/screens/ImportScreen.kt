@@ -9,6 +9,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.BorderStroke
 import com.antigravity.aura.ui.theme.VermillionRed
 import com.antigravity.aura.ui.viewmodels.ImportViewModel
 
@@ -20,6 +24,7 @@ fun ImportScreen(
 ) {
     val importState by viewModel.importState.collectAsState()
     var urlInput by remember { mutableStateOf("") }
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -43,27 +48,61 @@ fun ImportScreen(
         ) {
             when (val state = importState) {
                 is ImportViewModel.ImportState.Idle -> {
+                    val launcher = rememberLauncherForActivityResult(
+                        contract = ActivityResultContracts.GetContent()
+                    ) { uri ->
+                        uri?.let {
+                            try {
+                                val inputStream = context.contentResolver.openInputStream(uri)
+                                val content = inputStream?.bufferedReader()?.use { it.readText() }
+                                if (content != null) {
+                                    viewModel.importFromCsv(content)
+                                }
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        }
+                    }
+
+                    if (false) {
+                        Text(
+                            text = "Paste your Spotify Playlist URL below",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        OutlinedTextField(
+                            value = urlInput,
+                            onValueChange = { urlInput = it },
+                            label = { Text("Spotify URL") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Button(
+                            onClick = { viewModel.importSpotifyPlaylist(urlInput) },
+                            colors = ButtonDefaults.buttonColors(containerColor = VermillionRed),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Import Playlist")
+                        }
+                        Spacer(modifier = Modifier.height(24.dp))
+                    }
+
                     Text(
-                        text = "Paste your Spotify Playlist URL below",
+                        text = "Import a playlist from a CSV file",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onBackground,
                         textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(16.dp))
-                    OutlinedTextField(
-                        value = urlInput,
-                        onValueChange = { urlInput = it },
-                        label = { Text("Spotify URL") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Button(
-                        onClick = { viewModel.importSpotifyPlaylist(urlInput) },
-                        colors = ButtonDefaults.buttonColors(containerColor = VermillionRed),
+                    OutlinedButton(
+                        onClick = { launcher.launch("text/*") },
+                        border = BorderStroke(1.dp, VermillionRed),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Import Playlist")
+                        Text("Import from CSV (Exportify)", color = VermillionRed)
                     }
                 }
                 is ImportViewModel.ImportState.Loading -> {

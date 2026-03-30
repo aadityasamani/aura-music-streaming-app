@@ -19,12 +19,13 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.antigravity.aura.ui.theme.VermillionRed
 import com.antigravity.aura.ui.viewmodels.SearchViewModel
+import com.antigravity.aura.ui.viewmodels.TrackSearchResult
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
     viewModel: SearchViewModel = hiltViewModel(),
-    onTrackClick: (String) -> Unit = {}
+    onTrackClick: (TrackSearchResult) -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf("") }
     val searchResults by viewModel.searchResults.collectAsState()
@@ -97,7 +98,7 @@ fun SearchScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onTrackClick(result.videoId) }
+                                .clickable { onTrackClick(result) }
                                 .padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {

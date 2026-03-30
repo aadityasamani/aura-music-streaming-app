@@ -17,6 +17,7 @@ import javax.inject.Singleton
 @Singleton
 class AuraPlayerController @Inject constructor(@ApplicationContext context: Context) {
     private var mediaController: MediaController? = null
+    private var pendingUrl: String? = null
     
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -27,6 +28,12 @@ class AuraPlayerController @Inject constructor(@ApplicationContext context: Cont
         
         controllerFuture.addListener({
             mediaController = controllerFuture.get()
+            
+            pendingUrl?.let { url ->
+                playStream(url)
+                pendingUrl = null
+            }
+
             mediaController?.addListener(object : Player.Listener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     _isPlaying.value = isPlaying
@@ -36,6 +43,11 @@ class AuraPlayerController @Inject constructor(@ApplicationContext context: Cont
     }
 
     fun playStream(url: String) {
+        if (mediaController == null) {
+            pendingUrl = url
+            return
+        }
+
         val mediaItem = MediaItem.fromUri(url)
         mediaController?.setMediaItem(mediaItem)
         mediaController?.prepare()

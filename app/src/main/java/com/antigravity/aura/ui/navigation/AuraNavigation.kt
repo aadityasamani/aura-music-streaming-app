@@ -1,14 +1,24 @@
 package com.antigravity.aura.ui.navigation
 
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -16,10 +26,39 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.antigravity.aura.ui.screens.*
+import com.antigravity.aura.ui.theme.VermillionRed
+import com.antigravity.aura.ui.viewmodels.PlayerViewModel
+
+private val PauseIcon: ImageVector
+    get() = ImageVector.Builder(
+        name = "Pause",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f
+    ).apply {
+        path(fill = SolidColor(Color.Black)) {
+            moveTo(6f, 19f)
+            lineTo(10f, 19f)
+            lineTo(10f, 5f)
+            lineTo(6f, 5f)
+            close()
+            moveTo(14f, 5f)
+            lineTo(14f, 19f)
+            lineTo(18f, 19f)
+            lineTo(18f, 5f)
+            close()
+        }
+    }.build()
+
 
 @Composable
 fun AuraNavigation() {
     val navController = rememberNavController()
+    
+    val playerViewModel: PlayerViewModel = hiltViewModel()
+    val currentTrack by playerViewModel.currentTrack.collectAsState()
+    val isPlaying by playerViewModel.playerController.isPlaying.collectAsState()
     
     val items = listOf(
         Pair("home", Icons.Default.Home),
@@ -29,23 +68,63 @@ fun AuraNavigation() {
 
     Scaffold(
         bottomBar = {
-            NavigationBar {
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentDestination = navBackStackEntry?.destination
-                items.forEach { (route, icon) ->
-                    NavigationBarItem(
-                        icon = { Icon(icon, contentDescription = route) },
-                        label = { Text(route.replaceFirstChar { it.uppercase() }) },
-                        selected = currentDestination?.hierarchy?.any { it.route == route } == true,
-                        onClick = {
-                            navController.navigate(route) {
-                                // Pop up to the start destination of the graph to avoid building up a large stack
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
+            Column {
+                if (currentTrack != null) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { navController.navigate("now_playing") },
+                        color = MaterialTheme.colorScheme.surfaceVariant
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = currentTrack!!.title,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    text = currentTrack!!.artist,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1
+                                )
+                            }
+                            IconButton(onClick = { playerViewModel.playerController.togglePlayPause() }) {
+                                Icon(
+                                    imageVector = if (isPlaying) PauseIcon else Icons.Default.PlayArrow,
+                                    contentDescription = "Play/Pause",
+                                    tint = VermillionRed
+                                )
                             }
                         }
-                    )
+                    }
+                }
+                
+                NavigationBar {
+                    val navBackStackEntry by navController.currentBackStackEntryAsState()
+                    val currentDestination = navBackStackEntry?.destination
+                    items.forEach { (route, icon) ->
+                        NavigationBarItem(
+                            icon = { Icon(icon, contentDescription = route) },
+                            label = { Text(route.replaceFirstChar { it.uppercase() }) },
+                            selected = currentDestination?.hierarchy?.any { it.route == route } == true,
+                            onClick = {
+                                navController.navigate(route) {
+                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -58,11 +137,19 @@ fun AuraNavigation() {
             composable("home") {
                 HomeScreen()
             }
+            composable("now_playing") {
+                if (currentTrack != null) {
+                    NowPlayingScreen(
+                        controller = playerViewModel.playerController,
+                        trackTitle = currentTrack!!.title,
+                        artistName = currentTrack!!.artist
+                    )
+                }
+            }
             composable("search") {
-                val playerViewModel = androidx.hilt.navigation.compose.hiltViewModel<com.antigravity.aura.ui.viewmodels.PlayerViewModel>()
                 SearchScreen(
-                    onTrackClick = { videoId ->
-                        playerViewModel.playYouTubeVideo(videoId)
+                    onTrackClick = { result ->
+                        playerViewModel.playYouTubeVideo(result.videoId, result.title, result.artist)
                     }
                 )
             }
@@ -79,12 +166,11 @@ fun AuraNavigation() {
             }
             composable("playlist/{playlistId}") { backStackEntry ->
                 val id = backStackEntry.arguments?.getString("playlistId") ?: return@composable
-                val playerViewModel = androidx.hilt.navigation.compose.hiltViewModel<com.antigravity.aura.ui.viewmodels.PlayerViewModel>()
                 PlaylistDetailScreen(
                     playlistId = id,
                     onNavigateBack = { navController.popBackStack() },
                     onTrackClick = { track -> 
-                        track.youtubeVideoId?.let { playerViewModel.playYouTubeVideo(it) }
+                        track.youtubeVideoId?.let { playerViewModel.playYouTubeVideo(it, track.title, track.artist) }
                     }
                 )
             }
