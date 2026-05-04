@@ -93,7 +93,10 @@ class ImportViewModel @Inject constructor(
         data class Error(val message: String) : ImportState()
     }
 
-    fun importFromCsv(csvContent: String) {
+    fun importFromCsv(csvContent: String, fileName: String = "Imported Playlist") {
+        // Fix #10: derive playlist name from the file name, stripping .csv extension
+        val playlistName = fileName.removeSuffix(".csv").ifBlank { "Imported Playlist" }
+
         viewModelScope.launch {
             try {
                 val lines = csvContent.lines().filter { it.isNotBlank() }
@@ -120,7 +123,7 @@ class ImportViewModel @Inject constructor(
                 val dbPlaylistId = UUID.randomUUID().toString()
                 val playlistEntity = PlaylistEntity(
                     id = dbPlaylistId,
-                    name = "Imported Playlist",
+                    name = playlistName,
                     coverUrl = null
                 )
                 auraRepository.createPlaylist(playlistEntity)

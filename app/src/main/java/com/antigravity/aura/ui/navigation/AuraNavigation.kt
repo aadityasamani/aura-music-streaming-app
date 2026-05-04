@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -13,10 +14,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.vector.path
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -25,41 +24,19 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import coil.compose.AsyncImage
 import com.antigravity.aura.ui.screens.*
 import com.antigravity.aura.ui.theme.VermillionRed
 import com.antigravity.aura.ui.viewmodels.PlayerViewModel
 
-private val PauseIcon: ImageVector
-    get() = ImageVector.Builder(
-        name = "Pause",
-        defaultWidth = 24.dp,
-        defaultHeight = 24.dp,
-        viewportWidth = 24f,
-        viewportHeight = 24f
-    ).apply {
-        path(fill = SolidColor(Color.Black)) {
-            moveTo(6f, 19f)
-            lineTo(10f, 19f)
-            lineTo(10f, 5f)
-            lineTo(6f, 5f)
-            close()
-            moveTo(14f, 5f)
-            lineTo(14f, 19f)
-            lineTo(18f, 19f)
-            lineTo(18f, 5f)
-            close()
-        }
-    }.build()
-
-
 @Composable
 fun AuraNavigation() {
     val navController = rememberNavController()
-    
+
     val playerViewModel: PlayerViewModel = hiltViewModel()
     val currentTrack by playerViewModel.currentTrack.collectAsState()
     val isPlaying by playerViewModel.playerController.isPlaying.collectAsState()
-    
+
     val items = listOf(
         Pair("home", Icons.Default.Home),
         Pair("search", Icons.Default.Search),
@@ -69,6 +46,7 @@ fun AuraNavigation() {
     Scaffold(
         bottomBar = {
             Column {
+                // Mini-player bar — tap to open NowPlayingScreen
                 if (currentTrack != null) {
                     Surface(
                         modifier = Modifier
@@ -79,35 +57,49 @@ fun AuraNavigation() {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
+                            // Album art thumbnail
+                            val artUrl = currentTrack!!.albumArtUrl
+                            if (artUrl != null) {
+                                AsyncImage(
+                                    model = artUrl,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.size(40.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                            }
+
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = currentTrack!!.title,
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
                                     text = currentTrack!!.artist,
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
-                            IconButton(onClick = { playerViewModel.playerController.togglePlayPause() }) {
+                            IconButton(onClick = { playerViewModel.togglePlayPause() }) {
                                 Icon(
-                                    imageVector = if (isPlaying) PauseIcon else Icons.Default.PlayArrow,
-                                    contentDescription = "Play/Pause",
+                                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    contentDescription = if (isPlaying) "Pause" else "Play",
                                     tint = VermillionRed
                                 )
                             }
                         }
                     }
                 }
-                
+
                 NavigationBar {
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
                     val currentDestination = navBackStackEntry?.destination
@@ -135,16 +127,11 @@ fun AuraNavigation() {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable("home") {
-                HomeScreen()
+                HomeScreen(playerViewModel = playerViewModel)
             }
+            // Fix #4: NowPlayingScreen now manages its own state via hiltViewModel()
             composable("now_playing") {
-                if (currentTrack != null) {
-                    NowPlayingScreen(
-                        controller = playerViewModel.playerController,
-                        trackTitle = currentTrack!!.title,
-                        artistName = currentTrack!!.artist
-                    )
-                }
+                NowPlayingScreen(playerViewModel = playerViewModel)
             }
             composable("search") {
                 SearchScreen(
@@ -169,9 +156,9 @@ fun AuraNavigation() {
                 PlaylistDetailScreen(
                     playlistId = id,
                     onNavigateBack = { navController.popBackStack() },
-                    onTrackClick = { track -> 
-                        track.youtubeVideoId?.let { playerViewModel.playYouTubeVideo(it, track.title, track.artist) }
-                    }
+                    // Fix #3 wiring: playTrack handles the queue so skip/next work
+                    onTrackClick = { track -> playerViewModel.playTrack(track) },
+                    playerViewModel = playerViewModel
                 )
             }
         }

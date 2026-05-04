@@ -53,10 +53,22 @@ fun ImportScreen(
                     ) { uri ->
                         uri?.let {
                             try {
+                                // Extract the display name to use as playlist name (Fix #10)
+                                val fileName = context.contentResolver
+                                    .query(uri, null, null, null, null)
+                                    ?.use { cursor ->
+                                        val nameIndex = cursor.getColumnIndex(
+                                            android.provider.OpenableColumns.DISPLAY_NAME
+                                        )
+                                        if (cursor.moveToFirst() && nameIndex >= 0)
+                                            cursor.getString(nameIndex)
+                                        else null
+                                    } ?: "Imported Playlist"
+
                                 val inputStream = context.contentResolver.openInputStream(uri)
                                 val content = inputStream?.bufferedReader()?.use { it.readText() }
                                 if (content != null) {
-                                    viewModel.importFromCsv(content)
+                                    viewModel.importFromCsv(content, fileName)
                                 }
                             } catch (e: Exception) {
                                 e.printStackTrace()
