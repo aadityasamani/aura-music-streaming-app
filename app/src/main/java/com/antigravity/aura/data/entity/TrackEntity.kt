@@ -10,5 +10,6 @@ data class TrackEntity(
     val artist: String,
     val albumArtUrl: String?,
     val youtubeVideoId: String?, // Can be null until matched
-    val durationMs: Long
+    val durationMs: Long,
+    val isLiked: Boolean = false
 )

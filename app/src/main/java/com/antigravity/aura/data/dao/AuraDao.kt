@@ -44,4 +44,10 @@ interface AuraDao {
     
     @Query("UPDATE tracks SET youtubeVideoId = :videoId WHERE id = :trackId")
     suspend fun updateTrackYoutubeVideoId(trackId: String, videoId: String)
+
+    @Query("UPDATE tracks SET isLiked = :isLiked WHERE id = :trackId")
+    suspend fun updateTrackLikedStatus(trackId: String, isLiked: Boolean)
+
+    @Query("SELECT * FROM tracks WHERE isLiked = 1")
+    fun getLikedTracks(): Flow<List<TrackEntity>>
 }

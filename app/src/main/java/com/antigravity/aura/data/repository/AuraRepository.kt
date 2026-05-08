@@ -10,8 +10,17 @@ import javax.inject.Singleton
 
 @Singleton
 class AuraRepository @Inject constructor(
-    private val auraDao: AuraDao
+    private val auraDao: AuraDao,
+    private val apiKeyDao: com.antigravity.aura.data.dao.ApiKeyDao
 ) {
+
+    // API Key Management
+    fun getAllApiKeys() = apiKeyDao.getAllApiKeys()
+    suspend fun getActiveApiKey() = apiKeyDao.getActiveApiKey()
+    suspend fun insertApiKey(apiKey: com.antigravity.aura.data.entity.ApiKeyEntity) = apiKeyDao.insertApiKey(apiKey)
+    suspend fun deleteApiKey(apiKey: com.antigravity.aura.data.entity.ApiKeyEntity) = apiKeyDao.deleteApiKey(apiKey)
+    suspend fun setActiveApiKey(keyId: Int) = apiKeyDao.setActiveKey(keyId)
+    suspend fun updateApiKey(apiKey: com.antigravity.aura.data.entity.ApiKeyEntity) = apiKeyDao.updateApiKey(apiKey)
 
     suspend fun createPlaylist(playlist: PlaylistEntity) {
         auraDao.insertPlaylist(playlist)
@@ -41,4 +50,12 @@ class AuraRepository @Inject constructor(
     suspend fun updateYoutubeVideoId(trackId: String, videoId: String) {
         auraDao.updateTrackYoutubeVideoId(trackId, videoId)
     }
+
+    suspend fun updateTrackLikedStatus(trackId: String, isLiked: Boolean) {
+        auraDao.updateTrackLikedStatus(trackId, isLiked)
+    }
+
+    fun getLikedTracks(): Flow<List<TrackEntity>> = auraDao.getLikedTracks()
+
+    suspend fun getTrackById(id: String): TrackEntity? = auraDao.getTrackById(id)
 }

@@ -22,6 +22,18 @@ class AuraPlayerController @Inject constructor(@ApplicationContext context: Cont
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
 
+    private val _currentMetadata = MutableStateFlow<androidx.media3.common.MediaMetadata?>(null)
+    val currentMetadata: StateFlow<androidx.media3.common.MediaMetadata?> = _currentMetadata.asStateFlow()
+
+    private val _currentMediaId = MutableStateFlow<String?>(null)
+    val currentMediaId: StateFlow<String?> = _currentMediaId.asStateFlow()
+
+    private val _shuffleModeEnabled = MutableStateFlow(false)
+    val shuffleModeEnabled: StateFlow<Boolean> = _shuffleModeEnabled.asStateFlow()
+
+    private val _repeatMode = MutableStateFlow(Player.REPEAT_MODE_OFF)
+    val repeatMode: StateFlow<Int> = _repeatMode.asStateFlow()
+    
     init {
         val sessionToken = SessionToken(context, ComponentName(context, AuraMediaService::class.java))
         val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
@@ -30,7 +42,10 @@ class AuraPlayerController @Inject constructor(@ApplicationContext context: Cont
             mediaController = controllerFuture.get()
             
             pendingUrl?.let { url ->
-                playStream(url)
+                val mediaItem = MediaItem.fromUri(url)
+                mediaController?.setMediaItem(mediaItem)
+                mediaController?.prepare()
+                mediaController?.play()
                 pendingUrl = null
             }
 
@@ -38,18 +53,65 @@ class AuraPlayerController @Inject constructor(@ApplicationContext context: Cont
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     _isPlaying.value = isPlaying
                 }
+
+                override fun onMediaMetadataChanged(mediaMetadata: androidx.media3.common.MediaMetadata) {
+                    _currentMetadata.value = mediaMetadata
+                }
+
+                override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                    _currentMediaId.value = mediaItem?.mediaId
+                }
+
+                override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+                    _shuffleModeEnabled.value = shuffleModeEnabled
+                }
+
+                override fun onRepeatModeChanged(repeatMode: Int) {
+                    _repeatMode.value = repeatMode
+                }
             })
         }, ContextCompat.getMainExecutor(context))
     }
 
-    fun playStream(url: String) {
+    fun playYouTubeVideo(videoId: String, title: String, artist: String, mediaId: String? = null) {
         if (mediaController == null) {
-            pendingUrl = url
+            pendingUrl = "youtube://$videoId"
             return
         }
 
-        val mediaItem = MediaItem.fromUri(url)
+        val mediaItem = MediaItem.Builder()
+            .setUri("youtube://$videoId")
+            .setMediaId(mediaId ?: videoId)
+            .setMediaMetadata(
+                androidx.media3.common.MediaMetadata.Builder()
+                    .setTitle(title)
+                    .setArtist(artist)
+                    .build()
+            )
+            .build()
+            
         mediaController?.setMediaItem(mediaItem)
+        mediaController?.prepare()
+        mediaController?.play()
+    }
+
+    fun playPlaylist(videoIds: List<String>, titles: List<String>, artists: List<String>, mediaIds: List<String>, startIndex: Int = 0) {
+        if (mediaController == null) return
+
+        val mediaItems = videoIds.indices.map { i ->
+            MediaItem.Builder()
+                .setUri("youtube://${videoIds[i]}")
+                .setMediaId(mediaIds[i])
+                .setMediaMetadata(
+                    androidx.media3.common.MediaMetadata.Builder()
+                        .setTitle(titles[i])
+                        .setArtist(artists[i])
+                        .build()
+                )
+                .build()
+        }
+
+        mediaController?.setMediaItems(mediaItems, startIndex, 0)
         mediaController?.prepare()
         mediaController?.play()
     }
@@ -60,5 +122,26 @@ class AuraPlayerController @Inject constructor(@ApplicationContext context: Cont
         } else {
             mediaController?.play()
         }
+    }
+
+    fun toggleShuffle() {
+        mediaController?.shuffleModeEnabled = !(mediaController?.shuffleModeEnabled ?: false)
+    }
+
+    fun toggleRepeat() {
+        val nextMode = when (mediaController?.repeatMode) {
+            Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
+            Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
+            else -> Player.REPEAT_MODE_OFF
+        }
+        mediaController?.repeatMode = nextMode
+    }
+
+    fun skipToNext() {
+        mediaController?.seekToNext()
+    }
+
+    fun skipToPrevious() {
+        mediaController?.seekToPrevious()
     }
 }

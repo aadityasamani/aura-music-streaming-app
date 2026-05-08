@@ -98,7 +98,7 @@ fun AuraNavigation() {
                                 )
                             }
                             IconButton(onClick = { playerViewModel.playerController.togglePlayPause() }) {
-                                Icon(
+                                androidx.compose.material3.Icon(
                                     imageVector = if (isPlaying) PauseIcon else Icons.Default.PlayArrow,
                                     contentDescription = "Play/Pause",
                                     tint = VermillionRed
@@ -113,7 +113,7 @@ fun AuraNavigation() {
                     val currentDestination = navBackStackEntry?.destination
                     items.forEach { (route, icon) ->
                         NavigationBarItem(
-                            icon = { Icon(icon, contentDescription = route) },
+                            icon = { androidx.compose.material3.Icon(icon, contentDescription = route) },
                             label = { Text(route.replaceFirstChar { it.uppercase() }) },
                             selected = currentDestination?.hierarchy?.any { it.route == route } == true,
                             onClick = {
@@ -135,14 +135,19 @@ fun AuraNavigation() {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable("home") {
-                HomeScreen()
+                HomeScreen(
+                    onNavigateToSettings = { navController.navigate("api_key_manager") }
+                )
             }
             composable("now_playing") {
                 if (currentTrack != null) {
+                    val isLiked by playerViewModel.isLiked.collectAsState()
                     NowPlayingScreen(
                         controller = playerViewModel.playerController,
                         trackTitle = currentTrack!!.title,
-                        artistName = currentTrack!!.artist
+                        artistName = currentTrack!!.artist,
+                        isLiked = isLiked,
+                        onToggleLike = { playerViewModel.toggleLikeCurrentTrack() }
                     )
                 }
             }
@@ -156,7 +161,16 @@ fun AuraNavigation() {
             composable("library") {
                 LibraryScreen(
                     onNavigateToPlaylist = { id -> navController.navigate("playlist/$id") },
-                    onNavigateToImport = { navController.navigate("import") }
+                    onNavigateToImport = { navController.navigate("import") },
+                    onNavigateToLikedSongs = { navController.navigate("liked_songs") }
+                )
+            }
+            composable("liked_songs") {
+                LikedSongsScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onPlayTracks = { tracks, index ->
+                        playerViewModel.playPlaylist(tracks, index)
+                    }
                 )
             }
             composable("import") {
@@ -169,9 +183,14 @@ fun AuraNavigation() {
                 PlaylistDetailScreen(
                     playlistId = id,
                     onNavigateBack = { navController.popBackStack() },
-                    onTrackClick = { track -> 
-                        track.youtubeVideoId?.let { playerViewModel.playYouTubeVideo(it, track.title, track.artist) }
+                    onPlayPlaylist = { tracks, index ->
+                        playerViewModel.playPlaylist(tracks, index)
                     }
+                )
+            }
+            composable("api_key_manager") {
+                ApiKeyManagerScreen(
+                    onBack = { navController.popBackStack() }
                 )
             }
         }

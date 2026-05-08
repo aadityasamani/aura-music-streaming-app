@@ -5,9 +5,16 @@ import androidx.media3.common.C
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import com.antigravity.aura.youtube.YouTubeStreamFetcher
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class AuraMediaService : MediaSessionService() {
+
+    @Inject
+    lateinit var streamFetcher: YouTubeStreamFetcher
 
     private var mediaSession: MediaSession? = null
 
@@ -18,10 +25,15 @@ class AuraMediaService : MediaSessionService() {
             .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
             .setUsage(C.USAGE_MEDIA)
             .build()
+
+        val dataSourceFactory = YouTubeResolvingDataSource.Factory(this, streamFetcher)
+        val mediaSourceFactory = DefaultMediaSourceFactory(this)
+            .setDataSourceFactory(dataSourceFactory)
             
         val player = ExoPlayer.Builder(this)
             .setAudioAttributes(audioAttributes, true)
             .setHandleAudioBecomingNoisy(true)
+            .setMediaSourceFactory(mediaSourceFactory)
             .build()
             
         mediaSession = MediaSession.Builder(this, player).build()

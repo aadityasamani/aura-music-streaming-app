@@ -19,7 +19,9 @@ data class TrackSearchResult(
 )
 
 @HiltViewModel
-class SearchViewModel @Inject constructor() : ViewModel() {
+class SearchViewModel @Inject constructor(
+    private val youtubeSearcher: com.antigravity.aura.youtube.YouTubeSearcher
+) : ViewModel() {
     private val _searchResults = MutableStateFlow<List<TrackSearchResult>>(emptyList())
     val searchResults: StateFlow<List<TrackSearchResult>> = _searchResults.asStateFlow()
 
@@ -36,7 +38,7 @@ class SearchViewModel @Inject constructor() : ViewModel() {
             _isLoading.value = true
             _errorMessage.value = null
             try {
-                val results = com.antigravity.aura.youtube.YouTubeSearcher.search(query)
+                val results = youtubeSearcher.search(query)
                 
                 if (results.isEmpty()) {
                     _errorMessage.value = "No results found on YouTube."

@@ -58,7 +58,7 @@ fun SearchScreen(
                 placeholder = { Text("What do you want to listen to?") },
                 trailingIcon = { 
                     IconButton(onClick = { viewModel.search(searchQuery) }) {
-                        Icon(Icons.Default.Search, contentDescription = "Search Icon")
+                        androidx.compose.material3.Icon(Icons.Default.Search, contentDescription = "Search Icon")
                     }
                 },
                 singleLine = true,

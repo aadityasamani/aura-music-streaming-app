@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -16,58 +18,33 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import com.antigravity.aura.data.entity.PlaylistEntity
 import com.antigravity.aura.data.entity.TrackEntity
 import com.antigravity.aura.data.repository.AuraRepository
 import com.antigravity.aura.ui.theme.VermillionRed
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
 @HiltViewModel
-class PlaylistDetailViewModel @Inject constructor(
-    private val repository: AuraRepository
+class LikedSongsViewModel @Inject constructor(
+    repository: AuraRepository
 ) : ViewModel() {
-
-    private val _playlist = MutableStateFlow<PlaylistEntity?>(null)
-    val playlist: StateFlow<PlaylistEntity?> = _playlist.asStateFlow()
-
-    private val _tracks = MutableStateFlow<List<TrackEntity>>(emptyList())
-    val tracks: StateFlow<List<TrackEntity>> = _tracks.asStateFlow()
-
-    fun loadPlaylist(id: String) {
-        viewModelScope.launch {
-            _playlist.value = repository.getPlaylistById(id)
-            repository.getTracksForPlaylist(id).collect {
-                _tracks.value = it
-            }
-        }
-    }
+    val likedTracks: Flow<List<TrackEntity>> = repository.getLikedTracks()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PlaylistDetailScreen(
-    playlistId: String,
+fun LikedSongsScreen(
     onNavigateBack: () -> Unit,
-    onPlayPlaylist: (List<TrackEntity>, Int) -> Unit,
-    viewModel: PlaylistDetailViewModel = hiltViewModel()
+    onPlayTracks: (List<TrackEntity>, Int) -> Unit,
+    viewModel: LikedSongsViewModel = hiltViewModel()
 ) {
-    androidx.compose.runtime.LaunchedEffect(playlistId) {
-        viewModel.loadPlaylist(playlistId)
-    }
-
-    val playlist by viewModel.playlist.collectAsState()
-    val tracks by viewModel.tracks.collectAsState()
+    val tracks by viewModel.likedTracks.collectAsState(initial = emptyList())
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(playlist?.name ?: "Loading...", style = MaterialTheme.typography.titleLarge) },
+                title = { Text("Liked Songs", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         androidx.compose.material3.Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -82,10 +59,10 @@ fun PlaylistDetailScreen(
         floatingActionButton = {
             if (tracks.isNotEmpty()) {
                 FloatingActionButton(
-                    onClick = { onPlayPlaylist(tracks, 0) },
+                    onClick = { onPlayTracks(tracks, 0) },
                     containerColor = VermillionRed
                 ) {
-                    androidx.compose.material3.Icon(Icons.Default.PlayArrow, contentDescription = "Play Playlist")
+                    androidx.compose.material3.Icon(Icons.Default.PlayArrow, contentDescription = "Play All")
                 }
             }
         }
@@ -105,20 +82,21 @@ fun PlaylistDetailScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     androidx.compose.material3.Icon(
-                        imageVector = Icons.Default.List,
+                        Icons.Default.Favorite,
                         contentDescription = null,
                         modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+                        tint = VermillionRed.copy(alpha = 0.2f)
                     )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
             }
+            
             items(tracks.indices.toList()) { index ->
                 val track = tracks[index]
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onPlayPlaylist(tracks, index) }
+                        .clickable { onPlayTracks(tracks, index) }
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -131,6 +109,21 @@ fun PlaylistDetailScreen(
                         Text(
                             text = track.artist,
                             style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+            
+            if (tracks.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier.fillParentMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No liked songs yet.",
+                            style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }

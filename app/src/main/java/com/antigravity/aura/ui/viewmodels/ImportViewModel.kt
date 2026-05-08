@@ -18,7 +18,8 @@ import javax.inject.Inject
 @HiltViewModel
 class ImportViewModel @Inject constructor(
     private val spotifyRepository: SpotifyRepository,
-    private val auraRepository: AuraRepository
+    private val auraRepository: AuraRepository,
+    private val youtubeSearcher: YouTubeSearcher
 ) : ViewModel() {
 
     private val _importState = MutableStateFlow<ImportState>(ImportState.Idle)
@@ -58,7 +59,7 @@ class ImportViewModel @Inject constructor(
                         "Mapping ${index + 1}/$totalTracks: ${track.name} by $artistName"
                     )
                     
-                    val youtubeVideoId = YouTubeSearcher.getBestMatch(track.name, artistName)
+                    val youtubeVideoId = youtubeSearcher.getBestMatch(track.name, artistName)
                     
                     val trackEntity = TrackEntity(
                         id = track.id,
@@ -141,7 +142,7 @@ class ImportViewModel @Inject constructor(
                         "Matching ${index + 1}/$totalTracks: $title"
                     )
 
-                    val youtubeVideoId = YouTubeSearcher.getBestMatch(title, artist)
+                    val youtubeVideoId = youtubeSearcher.getBestMatch(title, artist)
 
                     val trackEntity = TrackEntity(
                         id = id,

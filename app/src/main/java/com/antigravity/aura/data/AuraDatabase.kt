@@ -11,11 +11,13 @@ import com.antigravity.aura.data.entity.TrackEntity
     entities = [
         PlaylistEntity::class,
         TrackEntity::class,
-        PlaylistTrackCrossRef::class
+        PlaylistTrackCrossRef::class,
+        com.antigravity.aura.data.entity.ApiKeyEntity::class
     ],
-    version = 1,
+    version = 3,
     exportSchema = false
 )
 abstract class AuraDatabase : RoomDatabase() {
     abstract fun auraDao(): AuraDao
+    abstract fun apiKeyDao(): com.antigravity.aura.data.dao.ApiKeyDao
 }

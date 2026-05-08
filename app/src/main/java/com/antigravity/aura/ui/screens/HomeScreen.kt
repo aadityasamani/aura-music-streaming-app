@@ -6,15 +6,24 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import com.antigravity.aura.ui.theme.VermillionRed
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen() {
+fun HomeScreen(
+    onNavigateToSettings: () -> Unit
+) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("AURA", style = MaterialTheme.typography.headlineLarge) },
+                actions = {
+                    IconButton(onClick = onNavigateToSettings) {
+                        androidx.compose.material3.Icon(Icons.Default.Settings, contentDescription = "Settings")
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                     titleContentColor = VermillionRed

@@ -30,4 +30,10 @@ object DatabaseModule {
     fun provideAuraDao(database: AuraDatabase): AuraDao {
         return database.auraDao()
     }
+
+    @Provides
+    @Singleton
+    fun provideApiKeyDao(database: AuraDatabase): com.antigravity.aura.data.dao.ApiKeyDao {
+        return database.apiKeyDao()
+    }
 }
